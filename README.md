@@ -23,7 +23,7 @@ Demo演示
 ----------
 > * 点击即可体验→[潮节呾吧](http://www.chaofest.xyz)
 
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/welcome.png" width="600"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/welcome.png" width="800"/> </div>
 
 
 压力测试
