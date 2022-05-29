@@ -21,7 +21,7 @@ Linux下C++轻量级Web服务器，快速实践网络编程，搭建属于自己
 
 Demo演示
 ----------
-> * [潮节呾吧](www.chaofest.xyz)
+> * [潮节呾吧](http://www.chaofest.xyz)
 
 
 压力测试
