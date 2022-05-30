@@ -1,19 +1,51 @@
 
 TinyWebServer
 ===============
-Linux下C++轻量级Web服务器，快速实践网络编程，搭建属于自己的服务器.
+Linux系统下C++轻量级Web服务器，接收浏览器消息并响应请求，实践网络编程。
 
-* 使用 **线程池 + 非阻塞socket + epoll(ET和LT均实现) + 事件处理(Reactor和Proactor均实现)** 的并发模型
-* 使用**状态机**解析HTTP请求报文，支持解析**GET和POST**请求
-* 访问服务器数据库实现web端用户**注册、登录**功能，可以请求服务器**图片和视频文件**
-* 实现**同步/异步日志系统**，记录服务器运行状态
-* 经Webbench压力测试可以实现**近万的并发连接**数据交换
+* 基于 **线程池 + 非阻塞socket + epoll(支持ET和LT)**实现**Reactor和Proactor**两种事件处理模式的并发模型
+* 使用**有限状态机**解析HTTP**GET和POST**请求报文，分别实现客户端访问**图片、视频**文件和**注册、登录**功能
+* 使用SIGALRM信号触发定时器，实现**升序链表定时器容器**，关闭超时非活动连接
+* 使用**MySQL**数据库存储用户信息，建立基于**RAII机制的连接池**，提高逻辑单元对数据的访问效率
+* 实现**同步/异步（阻塞队列）日志系统**，记录服务器运行状态
+* 部署在云端，经Webbench压力测试可实现**近万的并发连接**数据交换
 
 目录
 -----
 
-| [框架](#框架) | [Demo演示](#Demo演示) | [压力测试](#压力测试) |[更新日志](#更新日志) | [快速运行](#快速运行) | [个性化运行](#个性化运行) | [致谢](#致谢) |
+| [目录树](#目录树) | [框架](#框架) | [Demo演示](#Demo演示) |[更新日志](#更新日志) | [快速运行](#快速运行) | [个性化运行](#个性化运行) | [压力测试](#压力测试) | [致谢](#致谢) |
 
+目录树
+-------------
+```
+.
+├── CGImysql           数据库连接池
+│   ├── sql_connection_pool.cpp
+│   ├── sql_connection_pool.h
+├── http               http连接请求处理类
+│   ├── http_conn.cpp
+│   ├── http_conn.h
+├── lock               线程同步机制包装类
+│   ├── locker.h
+├── log                同步/异步日志系统
+│   ├── block_queue.h
+│   ├── log.cpp
+│   ├── log.h
+├── root               静态资源
+├── test_presure       简易服务器压力测试
+├── threadpool         半同步/半反应堆线程池
+│   ├── threadpool.h
+├── timer              定时器处理非活动连接
+│   ├── lst_timer.cpp
+│   ├── lst_timer.h
+├── build.sh           
+├── config.cpp         配置
+├── config.h           配置
+├── main.cpp           主函数
+├── makefile   
+├── webserver.cpp          
+└── webserver.h
+```
 
 框架
 -------------
@@ -21,39 +53,10 @@ Linux下C++轻量级Web服务器，快速实践网络编程，搭建属于自己
 
 Demo演示
 ----------
-> * 点击即可体验→[潮节呾吧](http://www.chaofest.xyz)
+> * **点击即可体验→**[潮节呾吧](http://www.chaofest.xyz)
 
 <div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/welcome.png" width="800"/> </div>
 
-
-压力测试
--------------
-测试环境：
-> * x为云服务器：通用型S3 1核2G 1M带宽 40G云硬盘
-> * 系统：Ubuntu 20.04 server 64bit
-
-测试方法：
-> * 关闭日志，使用80端口运行(不用端口只用ip就能直接访问): ./server -p 80 -c 1
-> * 使用Webbench对服务器进行压力测试: ./webbench -c 9000 -t 5 http://ip (并发连接总数：9000;访问服务器时间：5s)
-> * 对listenfd和connfd分别采用ET和LT模式
-
-测试结果：
-> * 均可实现9k+的并发连接，受限于云服务器的性能，在虚拟机中有6k+的QPS在此处只有500左右.
-
-> * LT+LT
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+LT.png" width="500"/> </div>
-
-> * LT+ET
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+ET.png" width="500"/> </div>
-
-> * ET+LT
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+LT.png" width="500"/> </div>
-
-> * ET+ET
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+ET.png" width="500"/> </div>
-
-
-**注意：** 使用本项目的webbench进行压测时，若报错显示webbench命令找不到，将可执行文件webbench删除后，重新编译即可。
 
 更新日志
 -------
@@ -163,6 +166,36 @@ Demo演示
 - [x] 线程池内有10条线程
 - [x] 关闭日志
 - [x] Reactor反应堆模型
+
+
+压力测试
+-------------
+测试环境：
+> * x为云服务器：通用型S3 1核2G 1M带宽 40G云硬盘
+> * 系统：Ubuntu 20.04 server 64bit
+
+测试方法：
+> * 关闭日志，使用80端口运行(不用端口只用ip就能直接访问): ./server -p 80 -c 1
+> * 使用Webbench对服务器进行压力测试: ./webbench -c 9000 -t 5 http://ip (并发连接总数：9000;访问服务器时间：5s)
+> * 对listenfd和connfd分别采用ET和LT模式
+
+测试结果：
+> * 均可实现9k+的并发连接，受限于云服务器的性能，在虚拟机中有6k+的QPS在此处只有500左右。
+
+> * LT+LT
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+LT.png" width="500"/> </div>
+
+> * LT+ET
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+ET.png" width="500"/> </div>
+
+> * ET+LT
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+LT.png" width="500"/> </div>
+
+> * ET+ET
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+ET.png" width="500"/> </div>
+
+
+**注意：** 使用本项目的webbench进行压测时，若报错显示webbench命令找不到，将可执行文件webbench删除后，重新编译即可。
 
 
 致谢
