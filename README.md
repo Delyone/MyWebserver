@@ -24,9 +24,11 @@ Linux系统下C++轻量级Web服务器，接收浏览器消息并响应请求，
 ├── CGImysql           数据库连接池
 │   ├── sql_connection_pool.cpp
 │   ├── sql_connection_pool.h
+├── files              放置上传文件
 ├── http               http连接请求处理类
 │   ├── http_conn.cpp
 │   ├── http_conn.h
+├── jsoncpp            配置jsoncpp
 ├── lock               线程同步机制包装类
 │   ├── locker.h
 ├── log                同步/异步日志系统
