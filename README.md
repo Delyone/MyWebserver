@@ -8,12 +8,14 @@ Linux系统下C++轻量级Web服务器，接收浏览器消息并响应请求，
 * 使用SIGALRM信号触发定时器，实现**升序链表定时器容器**，关闭超时非活动连接
 * 使用**MySQL**数据库存储用户信息，建立基于**RAII机制的连接池**，提高逻辑单元对数据的访问效率
 * 实现**同步/异步（阻塞队列）日志系统**，记录服务器运行状态
+* 解析**multi/form-data**类型的POST请求，实现**文件上传**功能
+* 利用**jsoncpp**生成json数据，展示**文件列表**
 * 部署在云端，经Webbench压力测试可实现**近万的并发连接**数据交换
 
 目录
 -----
 
-| [目录树](#目录树) | [框架](#框架) | [Demo演示](#Demo演示) |[更新日志](#更新日志) | [快速运行](#快速运行) | [个性化运行](#个性化运行) | [压力测试](#压力测试) | [致谢](#致谢) |
+| [目录树](#目录树) | [框架](#框架) | [Demo演示](#Demo演示) |[更新日志](#更新日志) |[To Do](#ToDo) | [快速运行](#快速运行) | [个性化运行](#个性化运行) | [压力测试](#压力测试) | [致谢](#致谢) |
 
 目录树
 -------------
@@ -55,12 +57,18 @@ Demo演示
 ----------
 > * **点击即可体验→**[潮节呾吧](http://www.chaofest.xyz)
 
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/welcome.png" width="800"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/images/welcome.png" width="800"/> </div>
 
 
 更新日志
 -------
-- [x] 持续更新中...
+- [x] 解析multi/form-data类型的POST请求，实现文件上传功能
+- [x] 利用jsoncpp生成json数据，展示文件列表
+
+ToDo
+-------
+- [x] 利用标准库容器封装char，实现自动扩容的缓冲区
+- [x] 根据文件列表下载文件
 
 
 快速运行
@@ -68,12 +76,18 @@ Demo演示
 * 服务器测试环境
 	* Ubuntu版本20.04
 	* MySQL版本5.7.29（虚拟机）和8.0.29（云服务器）
+	* jsoncpp
+
 * 浏览器测试环境
 	* Windows、Linux均可
 	* Chrome
 	* FireFox
 	* 搜狗浏览器
     * 微信电脑端
+
+* 如无cmake, 先[安装cmake3.8以上版本](https://blog.csdn.net/zjb18741809273/article/details/119192553)
+
+* 配置安装jsoncpp [cmake编译jsoncpp](https://blog.csdn.net/qq_40199447/article/details/105379634) [报错解决](https://blog.csdn.net/qq_41821678/article/details/120331269)
 
 * 测试前确认已安装MySQL数据库
 
@@ -183,16 +197,16 @@ Demo演示
 > * 均可实现9k+的并发连接，受限于云服务器的性能，在虚拟机中有6k+的QPS在此处只有500左右。
 
 > * LT+LT
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+LT.png" width="500"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/images/Proactor+LT+LT.png" width="500"/> </div>
 
 > * LT+ET
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+LT+ET.png" width="500"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/images/Proactor+LT+ET.png" width="500"/> </div>
 
 > * ET+LT
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+LT.png" width="500"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/images/Proactor+ET+LT.png" width="500"/> </div>
 
 > * ET+ET
-<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/image/Proactor+ET+ET.png" width="500"/> </div>
+<div align=center><img src="https://github.com/Delyone/MyWebserver/blob/master/root/images/Proactor+ET+ET.png" width="500"/> </div>
 
 
 **注意：** 使用本项目的webbench进行压测时，若报错显示webbench命令找不到，将可执行文件webbench删除后，重新编译即可。
@@ -204,3 +218,4 @@ Demo演示
 * [牛客网Linux高并发服务器开发](https://www.nowcoder.com/courses/cover/live/504)
 * [社长的TinyWebServer](https://github.com/qinguoyi/TinyWebServer)
 * [Mark的WebServer](https://github.com/markparticle/WebServer)
+* [Sakura的WebServer](https://github.com/Sakura1221/SimpleWebServer)

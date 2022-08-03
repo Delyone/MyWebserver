@@ -20,16 +20,18 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <map>
+#include <unordered_map>
 
 #include "../lock/locker.h"
 #include "../CGImysql/sql_connection_pool.h"
 #include "../timer/lst_timer.h"
 #include "../log/log.h"
 
+
 class http_conn {
 public:
     static const int FILENAME_LEN = 200; //读取文件名称大小
-    static const int READ_BUFFER_SIZE = 2048; //读缓冲区大小
+    static const int READ_BUFFER_SIZE = 81920; //读缓冲区大小(字节), 原来是2048，为了上传给的大些
     static const int WRITE_BUFFER_SIZE = 1024; //写缓冲区大小
     //枚举（enum)报文的请求方法
     enum METHOD {GET = 0, POST, HEAD, PUT, DELETE, TRACE, OPTIONS, CONNECT, PATH};
@@ -80,6 +82,8 @@ private:
     bool add_content_length(int content_len);
     bool add_linger();
     bool add_blank_line();
+    // （上传用）解析文件
+    void parseFormData(char *text);
 
 public:
     static int m_epollfd;
@@ -101,11 +105,14 @@ private:
 
     //解析请求报文中对应的6个变量
     char m_real_file[FILENAME_LEN]; //存储读取文件的名称
-    char *m_url;
+    char *m_url; // 网址
     char *m_version;
     char *m_host;
     int m_content_length;
     bool m_linger;
+    //（上传用）post请求中的具体数据格式，
+    // 本项目用到表单（application/x-www-form-urlencoded）和文件（multipart/form-data）
+    char *m_context_type; 
 
 
     char *m_file_address; //读取服务器上的文件地址
@@ -125,6 +132,8 @@ private:
     char sql_user[100];
     char sql_passwd[100];
     char sql_name[100];
+
+    unordered_map<string, string> fileInfo; //（上传用）文件信息
 };
 
 #endif

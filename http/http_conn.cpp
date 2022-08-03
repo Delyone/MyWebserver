@@ -1,7 +1,87 @@
 #include "http_conn.h"
 #include <mysql/mysql.h>
 #include <fstream>
+#include <dirent.h>
+#include <json/json.h>
+#include <sstream>
+#include <memory>
 
+//（上传下载用）回车加换行
+const char CRLF[] = "\r\n";
+//（上传用）标志是否上传
+bool up_load = false; 
+//（上传用）解析文件
+void http_conn::parseFormData(char *text) {
+    string body = text; // 消息体
+    if (body.size() == 0) return;
+
+    size_t st = 0, ed = 0;
+    ed = body.find(CRLF);
+    string boundary = body.substr(0, ed);
+
+    // 解析文件信息
+    st = body.find("filename=\"", ed) + strlen("filename=\"");
+    ed = body.find("\"", st);
+    fileInfo["filename"] = body.substr(st, ed - st);
+    
+    // 解析文件内容，文件内容以\r\n\r\n开始
+    st = body.find("\r\n\r\n", ed) + strlen("\r\n\r\n");
+    ed = body.find(boundary, st) - 2; // 文件结尾也有\r\n
+    string content = body.substr(st, ed - st);
+
+    ofstream ofs;
+    // 如果文件分多次发送，应该采用app，同时为避免重复上传，应该用md5做校验
+    ofs.open("./files/" + fileInfo["filename"], ios::ate);
+    ofs << content;
+    ofs.close();
+}
+// （下载用）获取文件
+vector<string> getFiles(string dir) {
+    vector<string> files;
+    DIR *pDir = NULL;
+	struct dirent * pEnt = NULL;
+
+	pDir = opendir(dir.c_str());
+	if (NULL == pDir)
+	{
+		perror("opendir");
+		return files;
+	}	
+    
+	while (1)
+	{
+		pEnt = readdir(pDir);
+		if(pEnt != NULL)
+		{
+            if(strcmp(".",pEnt->d_name)==0 || strcmp("..",pEnt->d_name)==0)
+            {
+                continue;
+            }
+			files.push_back(pEnt->d_name);
+		}
+		else
+		{
+			break;
+		}
+	};
+	return files;
+}
+// （下载用）更新json格式文件列表
+void write_json(string file, Json::Value root) {
+    std::ostringstream os;
+    Json::StreamWriterBuilder writerBuilder;
+    std::unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
+
+    jsonWriter->write(root, &os);
+
+    ofstream ofs;
+    ofs.open(file);
+    assert(ofs.is_open());
+    ofs << os.str();
+    ofs.close();
+
+    return;
+}
 
 //定义http响应的一些状态信息
 const char *ok_200_title = "OK";
@@ -171,7 +251,7 @@ http_conn::LINE_STATUS http_conn::parse_line() {
     return LINE_OPEN;
 }
 
-//循环读取客户数据，直至五数据可读或对方关闭连接
+//循环读取客户数据，直至无数据可读或对方关闭连接
 //非阻塞ET工作模式下，需要一次性将数据读完
 bool http_conn::read_once() {
     if(m_read_idx >= READ_BUFFER_SIZE) return false;
@@ -268,17 +348,40 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text) {
         text += strspn(text, "\t");
         m_host = text;
     }
+    //（上传用）解析请求头部Content-Type字段
+    else if(strncasecmp(text, "Content-Type:", 13) == 0) {
+        text += 13;
+        text += strspn(text, "\t");
+        m_context_type = text;
+    }
     else LOG_INFO("oop!unknow header: %s", text); //打印到日志
     return NO_REQUEST;
 }
 
 //主状态机解析请求内容,判断http请求是否被完整读入
 http_conn::HTTP_CODE http_conn::parse_content(char *text) {
+    
+    // 判断http请求是否被完整读入
     if(m_read_idx >= (m_content_length + m_checked_idx)) {
-        text[m_content_length] = '\0';
-        //POST请求中最后为输入的用户名和密码
-        m_string = text;
-        return GET_REQUEST;
+        LOG_INFO(m_context_type);
+        // 表单(注意application前有个空格)
+        if (strncasecmp(m_context_type, " application/x-www-form-urlencoded", 34) == 0) {
+            text[m_content_length] = '\0';
+            //POST请求中最后为输入的用户名和密码
+            m_string = text;
+            return GET_REQUEST;
+        } 
+        // （上传用）文件上传(multipart/form-data)
+        else {
+            LOG_INFO("upload file!");
+            parseFormData(text);
+            ofstream ofs;
+            ofs.open("./root/response.txt", ios::ate);
+            ofs << "./files/" << fileInfo["filename"];
+            ofs.close();
+            up_load = true; // 标志上传了，在do_request()中要处理
+            return GET_REQUEST;
+        }      
     }
     return NO_REQUEST;
 }
@@ -331,7 +434,16 @@ http_conn::HTTP_CODE http_conn::do_request() {
     int len = strlen(doc_root);
     const char *p = strrchr(m_url, '/'); //找到m_url中/位置
     
-    //处理cgi，登录和注册校验
+    //（上传用）处理上传后的结果
+    if (up_load) {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/response.txt"); //上传结果报告
+        //将网站目录和/response.txt进行拼接，更新到m_real_file
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        free(m_url_real);
+    }
+
+    //处理cgi(即post请求），登录和注册校验
     if(cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3')) {
         //根据标志判断是登录检测还是注册检测
         char flag = m_url[1];
@@ -404,7 +516,6 @@ http_conn::HTTP_CODE http_conn::do_request() {
     else if(*(p + 1) == '1') {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/log.html"); //登录页面
-        //将网站目录和/log.html进行拼接，更新到m_real_file
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
         free(m_url_real);
     }
@@ -426,7 +537,41 @@ http_conn::HTTP_CODE http_conn::do_request() {
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
         free(m_url_real);
     }
-    else strncpy(m_real_file + len, m_url, FILENAME_LEN -len - 1);
+    // （上传用）
+    else if(*(p + 1) == '8') {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/upload.html"); //上传页面
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        free(m_url_real);
+    }
+    // （下载用）
+    else if(*(p + 1) == '9') {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/download.html"); //下载页面
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        free(m_url_real);
+    }
+    else if(strncasecmp(p, "/list.json", 10) == 0) {
+        // 展示列表相关处理
+        auto files = getFiles("./files");
+        Json::Value root;
+        Json::Value file;
+        for (int i = 0; i < (int)files.size(); i++)
+        {
+            file["filename"] = files[i];
+            root.append(file);
+        }
+        write_json("./root/list.json", root);
+        //拼接文件名
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/list.json"); //文件列表
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        free(m_url_real);
+    }
+    // 这里可能改变上传的结果报告连接，所以加限定
+    else if(!up_load) strncpy(m_real_file + len, m_url, FILENAME_LEN -len - 1);
+
+    up_load = false; //(上传用）完毕改为默认
 
     //stat获取请求资源文件信息，获取成功则将信息更新到m_file_stat，失败返回
     if(stat(m_real_file, &m_file_stat) < 0) return NO_RESOURCE;
@@ -439,7 +584,7 @@ http_conn::HTTP_CODE http_conn::do_request() {
     int fd = open(m_real_file, O_RDONLY);
     //将普通文件映射到内存逻辑地址，加快访问速度
     m_file_address = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    close(fd);//避免文件描述法浪费和占用
+    close(fd);//避免文件描述符浪费和占用
     return FILE_REQUEST;//文件存在且可以访问
 }
 

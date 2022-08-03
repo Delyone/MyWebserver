@@ -9,3 +9,5 @@
 > * 7 fans 关注我
 > * welcome 成功登录选择页
 > * judge 主页
+> * upload 上传
+> * download 列表
